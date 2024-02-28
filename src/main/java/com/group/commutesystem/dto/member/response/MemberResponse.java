@@ -1,15 +1,19 @@
-package com.group.commutesystem.dto.response;
+package com.group.commutesystem.dto.member.response;
 
+import com.group.commutesystem.model.team.Team;
+import org.springframework.cglib.core.Local;
+
+import java.time.LocalDate;
 import java.util.Date;
 
 public class MemberResponse {
     private String name;
     private String teamName;
     private boolean role;
-    private Date birthday;
-    private Date workStartDate;
+    private LocalDate birthday;
+    private LocalDate workStartDate;
 
-    public MemberResponse(String name, String teamName, boolean role, Date birthday, Date workStartDate) {
+    public MemberResponse(String name, String teamName, boolean role, LocalDate birthday, LocalDate workStartDate) {
         this.name = name;
         this.teamName = teamName;
         this.role = role;
@@ -29,11 +33,11 @@ public class MemberResponse {
         return role;
     }
 
-    public Date getBirthday() {
+    public LocalDate getBirthday() {
         return birthday;
     }
 
-    public Date getWorkStartDate() {
+    public LocalDate getWorkStartDate() {
         return workStartDate;
     }
 }
