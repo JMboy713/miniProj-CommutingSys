@@ -1,10 +1,14 @@
 package com.group.commutesystem.controller.member;
 
 import com.group.commutesystem.dto.request.CreateMemberRequest;
+import com.group.commutesystem.dto.response.MemberResponse;
 import com.group.commutesystem.service.member.MemberService;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 public class MemberController {
@@ -17,6 +21,10 @@ public class MemberController {
     @PostMapping("/member")
     public void createMember(@RequestBody CreateMemberRequest request){
         memberService.createMember(request);
+    }
 
+    @GetMapping("/member")
+    public List<MemberResponse> getMembers(){
+        return memberService.getMembers();
     }
 }
