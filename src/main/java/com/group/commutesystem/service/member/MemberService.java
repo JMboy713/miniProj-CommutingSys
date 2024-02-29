@@ -2,6 +2,7 @@ package com.group.commutesystem.service.member;
 
 import com.group.commutesystem.dto.member.request.CreateMemberRequest;
 import com.group.commutesystem.dto.member.response.MemberResponse;
+import com.group.commutesystem.dto.member.response.WorkResponse;
 import com.group.commutesystem.model.member.Member;
 import com.group.commutesystem.model.member.commute.Commute;
 import com.group.commutesystem.repository.MemberCommuteHistoryRepository;
@@ -13,7 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -102,6 +106,42 @@ public class MemberService {
             // 오늘 날짜에 해당하는 출근 기록이 없는 경우 새 기록 생성 및 저장
             throw new IllegalStateException("출근 기록이 없습니다.");
         }
+    }
+
+    @Transactional
+    public WorkResponse getCommuteHistory(Long memberId, YearMonth date) {
+        LocalDate start = date.atDay(1);
+        LocalDate end = date.atEndOfMonth();
+        System.out.println(start+""+end);
+        List<Commute> commutes = MemberCommuteHistoryRepository.findByMemberIdAndDateBetween(memberId, start, end);
+//        WorkResponse workResponse = new WorkResponse();
+//
+//        for (Commute commute : commutes) {
+//            long workingMinutes = ChronoUnit.MINUTES.between(commute.getStartTime(), commute.getEndTime());
+//            workResponse.addDetails(commute.getDate(), workingMinutes);
+//            System.out.println(commute.getDate() + " " + workingMinutes);
+//        }
+//        return workResponse;
+        Map<LocalDate, Long> dailyWorkMinutes = commutes.stream()
+                .collect(Collectors.groupingBy(Commute::getDate,
+                        Collectors.summingLong(commute ->
+                                ChronoUnit.MINUTES.between(commute.getStartTime(), commute.getEndTime()))));
+
+        // 모든 근무 시간의 총합 계산
+        long totalWorkMinutes = dailyWorkMinutes.values().stream()
+                .mapToLong(Long::longValue)
+                .sum();
+
+        // 결과 구성 및 반환
+        List<WorkResponse.WorkDetail> workDetails = dailyWorkMinutes.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> new WorkResponse.WorkDetail(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
+
+        return new WorkResponse(workDetails, totalWorkMinutes);
+
+
+
     }
 
 

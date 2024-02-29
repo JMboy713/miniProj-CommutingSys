@@ -3,9 +3,12 @@ package com.group.commutesystem.controller.member;
 import com.group.commutesystem.dto.member.request.CreateMemberRequest;
 import com.group.commutesystem.dto.member.request.WorkRequest;
 import com.group.commutesystem.dto.member.response.MemberResponse;
+import com.group.commutesystem.dto.member.response.WorkResponse;
 import com.group.commutesystem.service.member.MemberService;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.YearMonth;
+import java.util.Date;
 import java.util.List;
 
 @RestController
@@ -34,5 +37,11 @@ public class MemberController {
     @PutMapping("/member/getoffwork")
     public void getOffWork(@RequestBody WorkRequest request){
         memberService.getOffWork(request.getId());
+    }
+
+    @GetMapping("/member/commute")
+    public WorkResponse getCommuteHistory(@RequestParam Long memberId,@RequestParam String date){
+        YearMonth yearMonth = YearMonth.parse(date);
+        return memberService.getCommuteHistory(memberId,yearMonth);
     }
 }
