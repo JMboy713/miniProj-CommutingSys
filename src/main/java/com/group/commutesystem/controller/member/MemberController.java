@@ -1,13 +1,10 @@
 package com.group.commutesystem.controller.member;
 
 import com.group.commutesystem.dto.member.request.CreateMemberRequest;
-import com.group.commutesystem.dto.member.request.GoToWorkRequest;
+import com.group.commutesystem.dto.member.request.WorkRequest;
 import com.group.commutesystem.dto.member.response.MemberResponse;
 import com.group.commutesystem.service.member.MemberService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -30,7 +27,12 @@ public class MemberController {
     }
 
     @PostMapping("/member/gotowork")
-    public void goToWork(@RequestBody GoToWorkRequest request){
+    public void goToWork(@RequestBody WorkRequest request){
         memberService.goToWork(request.getId());
+    }
+
+    @PutMapping("/member/getoffwork")
+    public void getOffWork(@RequestBody WorkRequest request){
+        memberService.getOffWork(request.getId());
     }
 }

@@ -53,4 +53,8 @@ public class Commute {
     public LocalTime getEndTime() {
         return endTime;
     }
+
+    public void setEndTime(LocalTime endTime) {
+        this.endTime = endTime;
+    }
 }

@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface MemberCommuteHistoryRepository extends JpaRepository<Commute, Long> {
-    Optional<Commute> findByMemberIdAndDate(Long memberId, LocalDate Date);
+    List<Commute> findByMemberIdAndDate(Long memberId, LocalDate Date);
 
 
 }

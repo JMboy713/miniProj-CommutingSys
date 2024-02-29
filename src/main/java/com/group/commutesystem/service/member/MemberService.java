@@ -52,10 +52,10 @@ public class MemberService {
         LocalTime now = LocalTime.now();
 
         // 오늘 날짜에 해당하는 출근 기록 조회
-        Optional<Commute> existingHistory = MemberCommuteHistoryRepository.findByMemberIdAndDate(memberId, today);
-
-        if (existingHistory.isPresent()) {
-            Commute history = existingHistory.get();
+        List<Commute> existingHistory = MemberCommuteHistoryRepository.findByMemberIdAndDate(memberId, today);
+        if (!existingHistory.isEmpty()) {
+            // 마지막 최근의 history를 가져온다.
+            Commute history = existingHistory.get(existingHistory.size() - 1);
 
             // 이미 출근 기록이 있고, 퇴근 시간이 설정되지 않은 경우 에러 반환
             if (history.getStartTime() != null && history.getEndTime() == null) {
@@ -71,14 +71,37 @@ public class MemberService {
             Commute newHistory = new Commute(member, today, now, null);
             MemberCommuteHistoryRepository.save(newHistory);
         }
-
-
-
 //        MemberCommuteHistory history = MemberCommuteHistoryRepository.findByMemberIdAndDate(member.getId(), LocalDate.now())
 //                .orElse(new MemberCommuteHistory(member, LocalDate.now(), LocalTime.now(),LocalTime.now()));
+    }
 
+    @Transactional
+    public void getOffWork(Long memberId){
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("등록되지 않은 사원입니다."));
 
+        LocalDate today = LocalDate.now();
+        LocalTime now = LocalTime.now();
 
+        // 오늘 날짜에 해당하는 출근 기록 조회
+        List<Commute> existingHistory = MemberCommuteHistoryRepository.findByMemberIdAndDate(memberId, today);
+
+        if (!existingHistory.isEmpty()) {
+            // 마지막 최근의 history를 가져온다.
+            Commute history = existingHistory.get(existingHistory.size() - 1);
+
+            // 이미 출근 기록이 없고, 퇴근 시간이 설정되지 않은 경우 에러 반환
+            if (history.getStartTime() != null && history.getEndTime() == null) {
+                history.setEndTime(now);
+            }
+            // 같은 날짜에 출근했다가 퇴근한 기록이 있는 경우, 새로운 기록 추가
+            else if (history.getEndTime() != null) {
+                throw new IllegalStateException("이미 퇴근한 사원입니다.");
+            }
+        } else {
+            // 오늘 날짜에 해당하는 출근 기록이 없는 경우 새 기록 생성 및 저장
+            throw new IllegalStateException("출근 기록이 없습니다.");
+        }
     }
 
 

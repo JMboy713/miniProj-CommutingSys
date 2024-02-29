@@ -1,6 +1,6 @@
 package com.group.commutesystem.dto.member.request;
 
-public class GoToWorkRequest {
+public class WorkRequest {
     private int id;
 
     public long getId() {
