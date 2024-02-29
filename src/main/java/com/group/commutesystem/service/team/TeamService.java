@@ -3,10 +3,9 @@ package com.group.commutesystem.service.team;
 import com.group.commutesystem.dto.team.request.CreateTeamRequest;
 import com.group.commutesystem.dto.team.response.TeamResponse;
 import com.group.commutesystem.model.team.Team;
-import com.group.commutesystem.model.team.TeamRepository;
+import com.group.commutesystem.repository.TeamRepository;
 import org.springframework.stereotype.Service;
 
-import java.net.CacheRequest;
 import java.util.List;
 import java.util.stream.Collectors;
 

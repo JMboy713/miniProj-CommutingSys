@@ -1,5 +1,6 @@
-package com.group.commutesystem.model.team;
+package com.group.commutesystem.repository;
 
+import com.group.commutesystem.model.team.Team;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

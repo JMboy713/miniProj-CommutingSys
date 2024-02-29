@@ -1,12 +1,15 @@
 package com.group.commutesystem.model.member;
 
 import com.group.commutesystem.dto.member.request.CreateMemberRequest;
+import com.group.commutesystem.model.member.commute.Commute;
 import com.group.commutesystem.model.team.Team;
 import jakarta.persistence.*;
 import org.springframework.cglib.core.Local;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 
 @Entity
@@ -25,6 +28,10 @@ public class Member {
 
     private LocalDate workStartDate;
 
+    @OneToMany(mappedBy = "member")
+    private List<Commute> histories = new ArrayList<>();
+
+
 
 
 
@@ -42,6 +49,10 @@ public class Member {
         this.role = request.isRole();
         this.birthday = request.getBirthday();
         this.workStartDate = request.getWorkStartDate();
+    }
+
+    public Long getId() {
+        return id;
     }
 
     public String getName() {
