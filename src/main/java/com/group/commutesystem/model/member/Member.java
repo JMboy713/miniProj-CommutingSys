@@ -78,4 +78,16 @@ public class Member {
     public LocalDate getWorkStartDate() {
         return workStartDate;
     }
+
+    public List<Vacation> getVacations() {
+        return vacations;
+    }
+
+    public int getDefaultVacation() {
+        if (getWorkStartDate().equals(LocalDate.now().getYear())) {
+            return 11;
+        }else{
+            return 15;
+        }
+    }
 }

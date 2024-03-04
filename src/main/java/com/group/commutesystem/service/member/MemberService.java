@@ -2,6 +2,7 @@ package com.group.commutesystem.service.member;
 
 import com.group.commutesystem.dto.member.request.CreateMemberRequest;
 import com.group.commutesystem.dto.member.response.MemberResponse;
+import com.group.commutesystem.dto.member.response.VacationResponse;
 import com.group.commutesystem.dto.member.response.WorkResponse;
 import com.group.commutesystem.model.member.Member;
 import com.group.commutesystem.model.member.commute.Commute;
@@ -180,9 +181,27 @@ public class MemberService {
             // 조건 불충족 시 예외 처리
             throw new IllegalStateException("휴가 사용 한도를 초과하였습니다.");
         }
+    }
 
+    public VacationResponse getVacation(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("등록되지 않은 사원입니다."));
 
+        // 올해 사용한 vacations 가져옴.
+        List<Vacation> vacations = vacationRepository.findAllByMemberId(memberId).stream()
+                .filter(vacation -> vacation.getDate().getYear() == LocalDate.now().getYear())
+                .collect(Collectors.toList());
 
+        // 사용한 휴가 일수 계산
+        long usedVacationDays = vacations.size(); // 여기서는 모든 휴가가 1일로 계산된다고 가정합니다.
+
+        // 회원 등록 연도 확인
+        boolean isNewMemberThisYear = member.getWorkStartDate().getYear() == LocalDate.now().getYear();
+
+        if (isNewMemberThisYear ) {
+            return new VacationResponse(11-usedVacationDays);
+        }
+        return new VacationResponse(15-usedVacationDays);
     }
 
 
