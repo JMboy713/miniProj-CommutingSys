@@ -2,6 +2,7 @@ package com.group.commutesystem.model.member;
 
 import com.group.commutesystem.dto.member.request.CreateMemberRequest;
 import com.group.commutesystem.model.member.commute.Commute;
+import com.group.commutesystem.model.member.vacation.Vacation;
 import com.group.commutesystem.model.team.Team;
 import jakarta.persistence.*;
 import org.springframework.cglib.core.Local;
@@ -30,6 +31,9 @@ public class Member {
 
     @OneToMany(mappedBy = "member")
     private List<Commute> histories = new ArrayList<>();
+
+    @OneToMany(mappedBy = "member")
+    private List<Vacation> vacations = new ArrayList<>();
 
 
 

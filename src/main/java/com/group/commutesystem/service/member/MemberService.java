@@ -5,10 +5,12 @@ import com.group.commutesystem.dto.member.response.MemberResponse;
 import com.group.commutesystem.dto.member.response.WorkResponse;
 import com.group.commutesystem.model.member.Member;
 import com.group.commutesystem.model.member.commute.Commute;
+import com.group.commutesystem.model.member.vacation.Vacation;
 import com.group.commutesystem.repository.MemberCommuteHistoryRepository;
 import com.group.commutesystem.repository.MemberRepository;
 import com.group.commutesystem.model.team.Team;
 import com.group.commutesystem.repository.TeamRepository;
+import com.group.commutesystem.repository.VacationRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,12 +27,15 @@ import java.util.stream.Collectors;
 public class MemberService {
     private final MemberRepository memberRepository;
     private final TeamRepository teamRepository;
-    private final MemberCommuteHistoryRepository MemberCommuteHistoryRepository;
+    private final MemberCommuteHistoryRepository memberCommuteHistoryRepository;
+    private final VacationRepository vacationRepository;
 
-    public MemberService(MemberRepository memberRepository, TeamRepository teamRepository, com.group.commutesystem.repository.MemberCommuteHistoryRepository memberCommuteHistoryRepository) {
+
+    public MemberService(MemberRepository memberRepository, TeamRepository teamRepository, MemberCommuteHistoryRepository memberCommuteHistoryRepository, VacationRepository vacationRepository) {
         this.memberRepository = memberRepository;
         this.teamRepository = teamRepository;
-        MemberCommuteHistoryRepository = memberCommuteHistoryRepository;
+        this.memberCommuteHistoryRepository = memberCommuteHistoryRepository;
+        this.vacationRepository = vacationRepository;
     }
 
     @Transactional
@@ -56,7 +61,7 @@ public class MemberService {
         LocalTime now = LocalTime.now();
 
         // 오늘 날짜에 해당하는 출근 기록 조회
-        List<Commute> existingHistory = MemberCommuteHistoryRepository.findByMemberIdAndDate(memberId, today);
+        List<Commute> existingHistory = memberCommuteHistoryRepository.findByMemberIdAndDate(memberId, today);
         if (!existingHistory.isEmpty()) {
             // 마지막 최근의 history를 가져온다.
             Commute history = existingHistory.get(existingHistory.size() - 1);
@@ -68,12 +73,12 @@ public class MemberService {
             // 같은 날짜에 출근했다가 퇴근한 기록이 있는 경우, 새로운 기록 추가
             else if (history.getEndTime() != null) {
                 Commute newHistory = new Commute(member, today, now, null);
-                MemberCommuteHistoryRepository.save(newHistory);
+                memberCommuteHistoryRepository.save(newHistory);
             }
         } else {
             // 오늘 날짜에 해당하는 출근 기록이 없는 경우 새 기록 생성 및 저장
             Commute newHistory = new Commute(member, today, now, null);
-            MemberCommuteHistoryRepository.save(newHistory);
+            memberCommuteHistoryRepository.save(newHistory);
         }
 //        MemberCommuteHistory history = MemberCommuteHistoryRepository.findByMemberIdAndDate(member.getId(), LocalDate.now())
 //                .orElse(new MemberCommuteHistory(member, LocalDate.now(), LocalTime.now(),LocalTime.now()));
@@ -88,7 +93,7 @@ public class MemberService {
         LocalTime now = LocalTime.now();
 
         // 오늘 날짜에 해당하는 출근 기록 조회
-        List<Commute> existingHistory = MemberCommuteHistoryRepository.findByMemberIdAndDate(memberId, today);
+        List<Commute> existingHistory = memberCommuteHistoryRepository.findByMemberIdAndDate(memberId, today);
 
         if (!existingHistory.isEmpty()) {
             // 마지막 최근의 history를 가져온다.
@@ -113,7 +118,7 @@ public class MemberService {
         LocalDate start = date.atDay(1);
         LocalDate end = date.atEndOfMonth();
         System.out.println(start+""+end);
-        List<Commute> commutes = MemberCommuteHistoryRepository.findByMemberIdAndDateBetween(memberId, start, end);
+        List<Commute> commutes = memberCommuteHistoryRepository.findByMemberIdAndDateBetween(memberId, start, end);
 //        WorkResponse workResponse = new WorkResponse();
 //
 //        for (Commute commute : commutes) {
@@ -139,6 +144,42 @@ public class MemberService {
                 .collect(Collectors.toList());
 
         return new WorkResponse(workDetails, totalWorkMinutes);
+
+
+
+    }
+
+    @Transactional
+    public void requestVacation(Long memberId, LocalDate date) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("등록되지 않은 사원입니다."));
+
+
+        int dueDate = member.getTeam().getDueDate(); // 휴가 전 duedate 전에 사용해야함.
+        if (LocalDate.now().plusDays(dueDate).isAfter(date)) {// 오늘 + duedate 가 date 보다 뒤라면.
+            throw new IllegalStateException("휴가 신청은 " + dueDate + "일 전에만 가능합니다.");
+        }
+
+        // 현재 연도에 해당하는 휴가만 필터링
+        List<Vacation> vacations = vacationRepository.findAllByMemberId(memberId).stream()
+                .filter(vacation -> vacation.getDate().getYear() == LocalDate.now().getYear())
+                .collect(Collectors.toList());
+
+        // 사용한 휴가 일수 계산
+        long usedVacationDays = vacations.size(); // 여기서는 모든 휴가가 1일로 계산된다고 가정합니다.
+
+        // 회원 등록 연도 확인
+        boolean isNewMemberThisYear = member.getWorkStartDate().getYear() == LocalDate.now().getYear();
+
+        // 휴가 승인 조건 검사
+        if ((isNewMemberThisYear && usedVacationDays < 11) || (!isNewMemberThisYear && usedVacationDays < 15)) {
+            // 휴가 승인 로직
+            Vacation vacation = new Vacation(member, date);
+            vacationRepository.save(vacation);
+        } else {
+            // 조건 불충족 시 예외 처리
+            throw new IllegalStateException("휴가 사용 한도를 초과하였습니다.");
+        }
 
 
 

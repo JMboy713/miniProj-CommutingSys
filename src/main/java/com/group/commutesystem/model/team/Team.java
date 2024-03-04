@@ -17,6 +17,9 @@ public class Team {
 
     private String name;
 
+    @Column(name = "due_date")
+    private int dueDate;
+
     protected Team() {
     }
 
@@ -35,5 +38,9 @@ public class Team {
 
     public int getMemberCount(){
         return members.size();
+    }
+
+    public int getDueDate() {
+        return dueDate;
     }
 }
