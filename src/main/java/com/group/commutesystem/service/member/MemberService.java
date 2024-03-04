@@ -19,9 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -115,9 +113,9 @@ public class MemberService {
     }
 
     @Transactional
-    public WorkResponse getCommuteHistory(Long memberId, YearMonth date) {
-        LocalDate start = date.atDay(1);
-        LocalDate end = date.atEndOfMonth();
+    public WorkResponse getCommuteHistory(Long memberId, YearMonth yearMonth) {
+        LocalDate start = yearMonth.atDay(1);
+        LocalDate end = yearMonth.atEndOfMonth();
         System.out.println(start+""+end);
         List<Commute> commutes = memberCommuteHistoryRepository.findByMemberIdAndDateBetween(memberId, start, end);
 //        WorkResponse workResponse = new WorkResponse();
@@ -128,23 +126,82 @@ public class MemberService {
 //            System.out.println(commute.getDate() + " " + workingMinutes);
 //        }
 //        return workResponse;
-        Map<LocalDate, Long> dailyWorkMinutes = commutes.stream()
-                .collect(Collectors.groupingBy(Commute::getDate,
-                        Collectors.summingLong(commute ->
-                                ChronoUnit.MINUTES.between(commute.getStartTime(), commute.getEndTime()))));
+        // 1일부터 31일까지의 날짜를 다 가져옴.
+        Map<LocalDate, WorkResponse.WorkDetail> workDetailsMap = start.datesUntil(end.plusDays(1))
+                .collect(Collectors.toMap(date -> date, date -> new WorkResponse.WorkDetail(date, 0L, false)));
 
-        // 모든 근무 시간의 총합 계산
-        long totalWorkMinutes = dailyWorkMinutes.values().stream()
-                .mapToLong(Long::longValue)
+        // 출근 기록 조회 및 처리
+        commutes.forEach(commute -> {
+            LocalDate date = commute.getDate();
+            long minutes = ChronoUnit.MINUTES.between(commute.getStartTime(), commute.getEndTime());
+            WorkResponse.WorkDetail detail = workDetailsMap.get(date);
+            detail.setWorkingMinutes(minutes); // 출근한 경우 근무 시간 업데이트
+        });
+
+        // 휴가 기록 조회 및 처리
+        List<Vacation> vacations = vacationRepository.findAllByMemberId(memberId);
+        vacations.forEach(vacation -> {
+            LocalDate date = vacation.getDate();
+            if (workDetailsMap.containsKey(date)) {
+                WorkResponse.WorkDetail detail = workDetailsMap.get(date);
+                detail.setUsingDayOff(true);
+                detail.setWorkMinutes(0); // 휴가 사용한 경우 근무 시간을 0으로 설정
+            }
+        });
+
+        // 최종 WorkResponse 구성
+        List<WorkResponse.WorkDetail> workDetails = new ArrayList<>(workDetailsMap.values());
+        workDetails.sort(Comparator.comparing(WorkResponse.WorkDetail::getDate)); // 날짜 순으로 정렬
+
+        long totalWorkMinutes = workDetails.stream()
+                .mapToLong(WorkResponse.WorkDetail::getWorkingMinutes)
                 .sum();
 
-        // 결과 구성 및 반환
-        List<WorkResponse.WorkDetail> workDetails = dailyWorkMinutes.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(entry -> new WorkResponse.WorkDetail(entry.getKey(), entry.getValue()))
-                .collect(Collectors.toList());
-
         return new WorkResponse(workDetails, totalWorkMinutes);
+
+
+
+
+
+//        Map<LocalDate, Long> dailyWorkMinutes = commutes.stream()
+//                .collect(Collectors.groupingBy(Commute::getDate,
+//                        Collectors.summingLong(commute ->
+//                                ChronoUnit.MINUTES.between(commute.getStartTime(), commute.getEndTime()))));
+//
+//        // 모든 근무 시간의 총합 계산
+//        long totalWorkMinutes = dailyWorkMinutes.values().stream()
+//                .mapToLong(Long::longValue)
+//                .sum();
+//
+//        // 결과 구성 및 반환
+////        List<WorkResponse.WorkDetail> workDetails = dailyWorkMinutes.entrySet().stream()
+////                .sorted(Map.Entry.comparingByKey())
+////                .map(entry -> new WorkResponse.WorkDetail(entry.getKey(), entry.getValue()))
+////                .collect(Collectors.toList());
+//
+//        // 특정 멤버의 휴가 데이터 조회
+//        List<Vacation> vacations = vacationRepository.findAllByMemberId(memberId);
+//
+//// 조회된 휴가 데이터를 기반으로 날짜별 휴가 사용 여부 맵 생성
+//        Map<LocalDate, Boolean> vacationUsageMap = vacations.stream()
+//                .collect(Collectors.toMap(Vacation::getDate, v -> true, (existing, replacement) -> existing));
+//
+//// dailyWorkMinutes와 vacationUsageMap을 이용하여 WorkDetail 리스트 생성
+//        List<WorkResponse.WorkDetail> workDetails = dailyWorkMinutes.entrySet().stream()
+//                .sorted(Map.Entry.comparingByKey())
+//                .map(entry -> {
+//                    // 해당 날짜에 휴가를 사용했는지 확인
+//                    boolean vacationUsed = vacationUsageMap.getOrDefault(entry.getKey(), false);
+//
+//                    // 근무 시간을 휴가 사용 여부에 따라 조정
+//                    long workMinutes = vacationUsed ? 0 : entry.getValue();
+//
+//                    // WorkDetail 객체 생성
+//                    return new WorkResponse.WorkDetail(entry.getKey(), workMinutes, vacationUsed);
+//                })
+//                .collect(Collectors.toList());
+//
+//        return new WorkResponse(workDetails, totalWorkMinutes);
 
 
 

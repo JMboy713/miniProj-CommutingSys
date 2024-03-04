@@ -18,18 +18,20 @@ public class WorkResponse {
 //        this.sum = 0;
 //    }
 
-    public void addDetails(LocalDate date, long workingMinutes) {
-        this.details.add(new WorkDetail(date,workingMinutes));
-        this.sum += workingMinutes;
-    }
+//    public void addDetails(LocalDate date, long workingMinutes) {
+//        this.details.add(new WorkDetail(date,workingMinutes,false));
+//        this.sum += workingMinutes;
+//    }
 
     public static class WorkDetail{
         private LocalDate date;
         private long workingMinutes;
+        private Boolean usingDayOff;
 
-        public WorkDetail(LocalDate date, long workingMinutes) {
+        public WorkDetail(LocalDate date, long workingMinutes, Boolean usingDayOff) {
             this.date = date;
             this.workingMinutes = workingMinutes;
+            this.usingDayOff = usingDayOff;
         }
 
         public LocalDate getDate() {
@@ -39,6 +41,22 @@ public class WorkResponse {
         public long getWorkingMinutes() {
             return workingMinutes;
         }
+
+        public Boolean getUsingDayOff() {
+            return usingDayOff;
+        }
+
+        public void setWorkingMinutes(long workingMinutes) {
+            this.workingMinutes += workingMinutes;
+        }
+
+        public void setUsingDayOff(Boolean usingDayOff) {
+            this.usingDayOff = usingDayOff;
+        }
+        public void setWorkMinutes(long workingMinutes) {
+            this.workingMinutes += workingMinutes;
+        }
+
     }
 
     public List<WorkDetail> getDetails() {
