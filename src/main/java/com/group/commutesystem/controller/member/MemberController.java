@@ -4,6 +4,7 @@ import com.group.commutesystem.dto.member.request.CreateMemberRequest;
 import com.group.commutesystem.dto.member.request.CreateVacationRequest;
 import com.group.commutesystem.dto.member.request.WorkRequest;
 import com.group.commutesystem.dto.member.response.MemberResponse;
+import com.group.commutesystem.dto.member.response.OverWorkResponse;
 import com.group.commutesystem.dto.member.response.VacationResponse;
 import com.group.commutesystem.dto.member.response.WorkResponse;
 import com.group.commutesystem.service.member.MemberService;
@@ -57,5 +58,11 @@ public class MemberController {
     @GetMapping("member/vacation")
     public VacationResponse getVacation(@RequestParam Long memberId) {
         return memberService.getVacation(memberId);
+    }
+
+    @GetMapping("member/overworking")
+    public List<OverWorkResponse> getOverWorking(@RequestParam String date) {
+        YearMonth yearMonth = YearMonth.parse(date);
+        return memberService.getOverWorking(yearMonth);
     }
 }

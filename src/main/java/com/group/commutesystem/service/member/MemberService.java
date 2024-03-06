@@ -2,22 +2,22 @@ package com.group.commutesystem.service.member;
 
 import com.group.commutesystem.dto.member.request.CreateMemberRequest;
 import com.group.commutesystem.dto.member.response.MemberResponse;
+import com.group.commutesystem.dto.member.response.OverWorkResponse;
 import com.group.commutesystem.dto.member.response.VacationResponse;
 import com.group.commutesystem.dto.member.response.WorkResponse;
 import com.group.commutesystem.model.member.Member;
 import com.group.commutesystem.model.member.commute.Commute;
 import com.group.commutesystem.model.member.vacation.Vacation;
+import com.group.commutesystem.model.team.Team;
 import com.group.commutesystem.repository.MemberCommuteHistoryRepository;
 import com.group.commutesystem.repository.MemberRepository;
-import com.group.commutesystem.model.team.Team;
 import com.group.commutesystem.repository.TeamRepository;
 import com.group.commutesystem.repository.VacationRepository;
+import com.ibm.icu.util.ChineseCalendar;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.YearMonth;
+import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -44,6 +44,7 @@ public class MemberService {
         Member member = new Member(createMemberRequest, team);
         memberRepository.save(member);
     }
+
     @Transactional(readOnly = true)
     public List<MemberResponse> getMembers() {
         List<Member> members = memberRepository.findAll();
@@ -84,7 +85,7 @@ public class MemberService {
     }
 
     @Transactional
-    public void getOffWork(Long memberId){
+    public void getOffWork(Long memberId) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("등록되지 않은 사원입니다."));
 
@@ -116,7 +117,7 @@ public class MemberService {
     public WorkResponse getCommuteHistory(Long memberId, YearMonth yearMonth) {
         LocalDate start = yearMonth.atDay(1);
         LocalDate end = yearMonth.atEndOfMonth();
-        System.out.println(start+""+end);
+        System.out.println(start + "" + end);
         List<Commute> commutes = memberCommuteHistoryRepository.findByMemberIdAndDateBetween(memberId, start, end);
 //        WorkResponse workResponse = new WorkResponse();
 //
@@ -160,9 +161,6 @@ public class MemberService {
         return new WorkResponse(workDetails, totalWorkMinutes);
 
 
-
-
-
 //        Map<LocalDate, Long> dailyWorkMinutes = commutes.stream()
 //                .collect(Collectors.groupingBy(Commute::getDate,
 //                        Collectors.summingLong(commute ->
@@ -202,7 +200,6 @@ public class MemberService {
 //                .collect(Collectors.toList());
 //
 //        return new WorkResponse(workDetails, totalWorkMinutes);
-
 
 
     }
@@ -255,11 +252,172 @@ public class MemberService {
         // 회원 등록 연도 확인
         boolean isNewMemberThisYear = member.getWorkStartDate().getYear() == LocalDate.now().getYear();
 
-        if (isNewMemberThisYear ) {
-            return new VacationResponse(11-usedVacationDays);
+        if (isNewMemberThisYear) {
+            return new VacationResponse(11 - usedVacationDays);
         }
-        return new VacationResponse(15-usedVacationDays);
+        return new VacationResponse(15 - usedVacationDays);
+    }
+
+
+    public List<OverWorkResponse> getOverWorking(YearMonth yearMonth) {
+        List<Member> members = memberRepository.findAll();
+        List<OverWorkResponse> overWorkResponses = new ArrayList<>();
+        LunarCalendar lunarCalendar = new LunarCalendar();
+        long workingMinutes = lunarCalendar.calculateMonthlyWorkHours(yearMonth.getYear(), yearMonth.getMonthValue()) ;
+
+        for (Member member : members) {
+            LocalDate start = yearMonth.atDay(1);
+            LocalDate end = yearMonth.atEndOfMonth();
+            // 해당 멤버의 출퇴근 기록 조회
+            List<Commute> commutes = memberCommuteHistoryRepository.findByMemberIdAndDateBetween(member.getId(), start, end);
+            // 총 근무 시간
+            long totalWorkMinutes = commutes.stream()
+                    .mapToLong(commute -> ChronoUnit.MINUTES.between(commute.getStartTime(), commute.getEndTime()))
+                    .sum();
+            long overWorkMinutes = totalWorkMinutes - workingMinutes ;
+            System.out.println(totalWorkMinutes);
+            System.out.println(workingMinutes);
+            if (overWorkMinutes > 0) {
+                overWorkResponses.add(new OverWorkResponse(member.getName(), overWorkMinutes));
+            } else {
+                overWorkResponses.add(new OverWorkResponse(member.getName(), 0));
+            }
+        }
+        return overWorkResponses;
     }
 
 
 }
+
+
+class LunarCalendar {
+    public static final int LD_SUNDAY = 7;
+    public static final int LD_SATURDAY = 6;
+    public static final int LD_MONDAY = 1;
+    static Map<Integer, Set<LocalDate>> map = new HashMap<>();
+
+    private LocalDate Lunar2Solar(LocalDate lunar) {
+        ChineseCalendar cc = new ChineseCalendar();
+
+        cc.set(ChineseCalendar.EXTENDED_YEAR, lunar.getYear() + 2637);   // 년, year + 2637
+        cc.set(ChineseCalendar.MONTH, lunar.getMonthValue() - 1);        // 월, month -1
+        cc.set(ChineseCalendar.DAY_OF_MONTH, lunar.getDayOfMonth());     // 일
+
+        LocalDate solar = Instant.ofEpochMilli(cc.getTimeInMillis()).atZone(ZoneId.of("UTC")).toLocalDate();
+
+        return solar;
+    }
+
+    /**
+     * Return the set of holidays of input yaer
+     *
+     * <p>results of this method would be <i>saved</i> in static field {@code this.map}
+     * after the method calculate holidays of input year
+     *
+     * @param year target year
+     * @return set of holidays of input year
+     */
+    public Set<LocalDate> holidaySet(int year) {
+        if (map.containsKey(year)) return map.get(year);
+        Set<LocalDate> holidaysSet = new HashSet<>();
+
+        // 양력 휴일
+        holidaysSet.add(LocalDate.of(year, 1, 1));   // 신정
+        holidaysSet.add(LocalDate.of(year, 3, 1));   // 삼일절
+        holidaysSet.add(LocalDate.of(year, 5, 5));   // 어린이날
+        holidaysSet.add(LocalDate.of(year, 6, 6));   // 현충일
+        holidaysSet.add(LocalDate.of(year, 8, 15));   // 광복절
+        holidaysSet.add(LocalDate.of(year, 10, 3));   // 개천절
+        holidaysSet.add(LocalDate.of(year, 10, 9));   // 한글날
+        holidaysSet.add(LocalDate.of(year, 12, 25));   // 성탄절
+
+        // 음력 휴일
+        holidaysSet.add(Lunar2Solar(LocalDate.of(year, 1, 1)).minusDays(1));  // ""
+        holidaysSet.add(Lunar2Solar(LocalDate.of(year, 1, 1)));  // 설날
+        holidaysSet.add(Lunar2Solar(LocalDate.of(year, 1, 2)));  // ""
+        holidaysSet.add(Lunar2Solar(LocalDate.of(year, 4, 8)));  // 석탄일
+        holidaysSet.add(Lunar2Solar(LocalDate.of(year, 8, 14)));  // ""
+        holidaysSet.add(Lunar2Solar(LocalDate.of(year, 8, 15)));  // 추석
+        holidaysSet.add(Lunar2Solar(LocalDate.of(year, 8, 16)));  // ""
+
+        try {
+            // 어린이날 대체공휴일 검사 : 어린이날은 토요일, 일요일인 경우 그 다음 평일을 대체공유일로 지정
+            holidaysSet.add(substituteHoliday(LocalDate.of(year, 5, 5)));
+            // 삼일절, 광복절, 개천절, 한글날
+            holidaysSet.add(substituteHoliday(LocalDate.of(year, 3, 1)));
+            holidaysSet.add(substituteHoliday(LocalDate.of(year, 8, 15)));
+            holidaysSet.add(substituteHoliday(LocalDate.of(year, 10, 3)));
+            holidaysSet.add(substituteHoliday(LocalDate.of(year, 10, 9)));
+
+
+            // 설날 대체공휴일 검사
+            if (Lunar2Solar(LocalDate.of(year, 1, 1)).getDayOfWeek().getValue() == LD_SUNDAY) {    // 일
+                holidaysSet.add(Lunar2Solar(LocalDate.of(year, 1, 3)));
+            }
+            if (Lunar2Solar(LocalDate.of(year, 1, 1)).getDayOfWeek().getValue() == LD_MONDAY) {    // 월
+                holidaysSet.add(Lunar2Solar(LocalDate.of(year, 1, 3)));
+            }
+            if (Lunar2Solar(LocalDate.of(year, 1, 2)).getDayOfWeek().getValue() == LD_SUNDAY) {    // 일
+                holidaysSet.add(Lunar2Solar(LocalDate.of(year, 1, 3)));
+            }
+
+            // 추석 대체공휴일 검사
+            if (Lunar2Solar(LocalDate.of(year, 8, 14)).getDayOfWeek().getValue() == LD_SUNDAY) {
+                holidaysSet.add(Lunar2Solar(LocalDate.of(year, 8, 17)));
+            }
+            if (Lunar2Solar(LocalDate.of(year, 8, 15)).getDayOfWeek().getValue() == LD_SUNDAY) {
+                holidaysSet.add(Lunar2Solar(LocalDate.of(year, 8, 17)));
+            }
+            if (Lunar2Solar(LocalDate.of(year, 8, 16)).getDayOfWeek().getValue() == LD_SUNDAY) {
+                holidaysSet.add(Lunar2Solar(LocalDate.of(year, 8, 17)));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        map.put(year, holidaysSet);
+        return holidaysSet;
+    }
+
+    /**
+     * @param h holiday target of substitute holiday
+     * @return new LocalDate Object: substitute holiday of input value
+     */
+    private LocalDate substituteHoliday(LocalDate h) {
+        if (h.getDayOfWeek().getValue() == LD_SUNDAY) {      // 일요일
+            return h.plusDays(1);
+        }
+        if (h.getDayOfWeek().getValue() == LD_SATURDAY) {  // 토요일
+            return h.plusDays(2);
+        }
+        return h;
+    }
+    // 기존의 LunarCalendar 클래스 구현...
+
+    /**
+     * 한달 기준 근로 시간을 계산합니다.
+     *
+     * @param year 대상 연도
+     * @param month 대상 월
+     * @return 한달의 총 근로 시간 (분 단위)
+     */
+    public long calculateMonthlyWorkHours(int year, int month) {
+        Set<LocalDate> holidays = holidaySet(year); // 해당 연도의 공휴일 셋을 가져옵니다.
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDate start = yearMonth.atDay(1);
+        LocalDate end = yearMonth.atEndOfMonth();
+        long workDays = 0;
+
+        for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+            // 주말이 아니고, 공휴일이 아닌 날짜를 카운트합니다.
+            if (!(date.getDayOfWeek().getValue() == LD_SATURDAY || date.getDayOfWeek().getValue() == LD_SUNDAY || holidays.contains(date))) {
+                workDays++;
+            }
+        }
+
+        long dailyWorkHours = 8; // 하루 근무 시간
+        return workDays * dailyWorkHours * 60; // 총 근로 시간을 분 단위로 반환
+    }
+
+    // holidaySet, substituteHoliday 메서드와 나머지 LunarCalendar 클래스 구현...
+}
+

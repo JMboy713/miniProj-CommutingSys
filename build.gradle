@@ -21,6 +21,8 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	implementation 'mysql:mysql-connector-java:8.0.27'
 	runtimeOnly 'mysql:mysql-connector-java'
+	implementation group: 'com.ibm.icu', name: 'icu4j', version: '4.0.1'
+
 }
 
 tasks.named('test') {
